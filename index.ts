@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import fsAsync from "node:fs/promises";
 import fs from "node:fs";
 import path from "node:path";

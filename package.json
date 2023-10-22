@@ -2,7 +2,9 @@
   "name": "autocomplete-az",
   "version": "0.0.1",
   "description": "a tool to generate azure autocomplete specs",
-  "main": "./build/index.js",
+  "bin": {
+    "autocomplete-az": "./build/index.js"
+  },
   "scripts": {
     "start": "ts-node --esm index.ts",
     "build": "tsc"
@@ -18,7 +20,8 @@
     "url": "https://github.com/cpendery/autocomplete-az/issues"
   },
   "files": [
-    "build/**"
+    "build/**",
+    "package.json"
   ],
   "dependencies": {
     "axios": "^1.5.1",
