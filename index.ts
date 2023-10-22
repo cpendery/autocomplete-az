@@ -18,6 +18,19 @@ type BaseCommand = {
   link: string | undefined | null;
 };
 
+/* general utility functions */
+
+const removeTrailingDot = (content: string): string => content.endsWith(".") ? content.slice(0, -1) : content
+const figifyList = <T>(list: T[]): T[] | T => {
+  switch (list.length) {
+    case 1:
+      return list[0]
+    default:
+      return list
+  }
+}
+const figifyEmptyList = <T>(list: T[]): T[] | T | undefined => list.length === 0 ? undefined : figifyList(list)
+
 /* Loading the base commands / extension */
 const cleanCommandName = (command: string) => {
   return command.replace(/\(.*\)/g, "").trim();
@@ -31,8 +44,8 @@ const getOption = (name: string, description: string, isPersistent: boolean, isR
     (isPersistent && (names.includes("--debug") || names.includes("--verbose") || names.includes("--help") || names.includes("--only-show-errors")));
 
   const matches = description.match(/accepted values:([^\n]+)/);
-  const suggestions = matches ? matches[1].split(",").map((s) => s.trim()) : [];
-  const args: Fig.Arg | undefined = has_no_arg ? undefined : { name: argName, suggestions, isOptional: false };
+  const suggestions = matches ? matches[1].split(",").map((s) => s.trim()) : undefined;
+  const args: Fig.Arg | undefined = has_no_arg ? undefined : { name: argName, suggestions };
 
   const cleanedDescription = description
     .replace(/default value:([^\n]+)/, "")
@@ -40,7 +53,7 @@ const getOption = (name: string, description: string, isPersistent: boolean, isR
     .replaceAll(/\s+/g, " ")
     .trim();
 
-  return { name: names, description: cleanedDescription, args, isPersistent, isRequired };
+  return { name: figifyList(names), description: removeTrailingDot(cleanedDescription), args, isPersistent: isPersistent ? true : undefined, isRequired: isRequired ? true: undefined };
 };
 
 const genBaseSubcommands = async () => {
@@ -57,7 +70,7 @@ const genBaseSubcommands = async () => {
         url = new URL(link, "https://learn.microsoft.com/en-us/cli/azure/");
         url.hash = "";
       }
-      return { name, description, link: url != null ? url.toString() : null };
+      return { name, description: removeTrailingDot(description), link: url != null ? url.toString() : null };
     })
     .toArray();
 
@@ -156,7 +169,7 @@ const loadSubcommandComponents = (commandId: string, $: cheerio.CheerioAPI, type
       break;
     }
 
-    components.push({ name: componentName, description: componentDescription, isRequired: type === "required" });
+    components.push({ name: componentName, description: removeTrailingDot(componentDescription), isRequired: type === "required"});
     lastComponent = componentDescriptionElement;
   }
   return components;
@@ -166,10 +179,10 @@ const requestLimit = pLimit(2);
 const loadSubcommand = async (baseCommand: BaseCommand, bar: ProgressBar): Promise<Fig.Subcommand> => {
   if (baseCommand.link == null) {
     bar.tick();
-    return { name: baseCommand.name, description: baseCommand.description };
+    return { name: baseCommand.name, description: removeTrailingDot(baseCommand.description) };
   }
   const groupUrls = await loadSubcommandGroupUrls(baseCommand.link, baseCommand.name);
-  const subcommand: Fig.Subcommand = { name: baseCommand.name, description: baseCommand.description, subcommands: [] };
+  const subcommand: Fig.Subcommand = { name: baseCommand.name, description: removeTrailingDot(baseCommand.description), subcommands: [] };
   await Promise.all(
     groupUrls.map(async (url) =>
       requestLimit(async () => {
@@ -192,7 +205,7 @@ const loadSubcommand = async (baseCommand: BaseCommand, bar: ProgressBar): Promi
             currentSubcommand = newSubcommand;
           }
         });
-        currentSubcommand.description = subcommandGroupDescription;
+        currentSubcommand.description = removeTrailingDot(subcommandGroupDescription);
 
         commands.forEach((command) => {
           const commandSections = cleanCommandName($(command).text()).split(" ").slice(2);
@@ -203,12 +216,12 @@ const loadSubcommand = async (baseCommand: BaseCommand, bar: ProgressBar): Promi
           const options = [...requiredComponents, ...optionalComponents]
             .filter((c) => c.name.trim().startsWith("-"))
             .map((c) => getOption(c.name, c.description, false, c.isRequired));
-          const args = [...requiredComponents, ...optionalComponents]
+          const args = figifyEmptyList([...requiredComponents, ...optionalComponents]
             .filter((c) => c.name.trim().startsWith("<"))
-            .map((c) => ({ name: c.name.trim(), description: c.description.trim(), isOptional: !c.isRequired } as Fig.Arg));
+            .map((c) => ({ name: c.name.trim(), description: removeTrailingDot(c.description.trim()), isOptional: !c.isRequired ? true : undefined } as Fig.Arg)));
 
           currentSubcommand.subcommands =
-            currentSubcommand.subcommands != null ? [...currentSubcommand.subcommands, { name, description, options, args }] : undefined;
+            currentSubcommand.subcommands != null ? [...currentSubcommand.subcommands, { name, description: removeTrailingDot(description), options, args }] : undefined;
         });
       })
     )
@@ -239,7 +252,7 @@ const main = async () => {
   const bar = new ProgressBar("[:bar] :current/:total :rate/sps :etas :elapseds", { total: baseCommands.length, width: 30 });
   const azCommand: Fig.Subcommand = {
     name: "az",
-    subcommands: baseCommands.map((command) => ({ name: command.name, description: command.description, loadSpec: `az/${version}/${command.name}` })),
+    subcommands: baseCommands.map((command) => ({ name: command.name, description: removeTrailingDot(command.description), loadSpec: `az/${version}/${command.name}` })),
     options: globalOptions,
   };
   await writeBaseCommands(azCommand, version);
