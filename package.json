@@ -1,0 +1,37 @@
+{
+  "name": "autocomplete-az",
+  "version": "0.0.1",
+  "description": "a tool to generate azure autocomplete specs",
+  "main": "./build/index.js",
+  "scripts": {
+    "start": "ts-node --esm index.ts",
+    "build": "tsc"
+  },
+  "type": "module",
+  "author": "cpendery@vt.edu",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cpendery/autocomplete-az.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cpendery/autocomplete-az/issues"
+  },
+  "files": [
+    "build/**"
+  ],
+  "dependencies": {
+    "axios": "^1.5.1",
+    "cheerio": "^1.0.0-rc.12",
+    "p-limit": "^4.0.0",
+    "progress": "^2.0.3"
+  },
+  "devDependencies": {
+    "@tsconfig/node18": "^18.2.2",
+    "@types/node": "^20.8.4",
+    "@types/progress": "^2.0.6",
+    "@withfig/autocomplete-types": "^1.28.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2"
+  }
+}
