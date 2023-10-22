@@ -47,7 +47,7 @@ const genBaseSubcommands = async () => {
   const resp = await axios.get("https://learn.microsoft.com/en-us/cli/azure/reference-index?view=azure-cli-latest");
   if (resp.status !== 200) throw new Error("Failed to fetch subcommands");
   const $ = cheerio.load(resp.data);
-  return $("table tbody tr")
+  const baseCommands = $("table tbody tr")
     .map((_, elem) => {
       const name = cleanCommandName($(elem).find("td:nth-child(1)").text()).split(" ")[1];
       const description = $(elem).find("td:nth-child(2)").text().trim();
@@ -60,6 +60,9 @@ const genBaseSubcommands = async () => {
       return { name, description, link: url != null ? url.toString() : null };
     })
     .toArray();
+
+  // avoid duplicates, a bit funky for `ml` since it has a v1 & v2 extension, we will just go with v1
+  return [...new Map(baseCommands.map(b => [b.name, b])).values()]
 };
 
 const genGlobalOptions = async (): Promise<Fig.Option[]> => {
