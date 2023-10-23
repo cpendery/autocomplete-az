@@ -287,7 +287,6 @@ const parseSubcommand = (
   };
 };
 
-const requestLimit = pLimit(2);
 const loadSubcommand = async (
   baseCommand: BaseCommand,
   bar: ProgressBar
@@ -340,13 +339,23 @@ const loadSubcommand = async (
       subcommandGroupDescription
     );
 
-    // TODO: duplicates appearing from extension methods `az webapp create vs. az webapp create (extension ...)
-    commands.forEach((command) => {
-      currentSubcommand.subcommands =
-        currentSubcommand.subcommands != null
-          ? [...currentSubcommand.subcommands, parseSubcommand($, command)]
-          : [parseSubcommand($, command)];
-    });
+    const allCommandNames = new Set(commands.map((c) => $(c).text().trim()));
+    commands
+      .filter((command) => {
+        //avoid duplicates appearing from extension methods `az webapp create vs. az webapp create (extension ...)
+        const commandName = $(command).text().trim();
+        const cleanedCommandName = cleanCommandName(commandName);
+        return (
+          allCommandNames.has(cleanedCommandName) &&
+          commandName == cleanedCommandName
+        );
+      })
+      .forEach((command) => {
+        currentSubcommand.subcommands =
+          currentSubcommand.subcommands != null
+            ? [...currentSubcommand.subcommands, parseSubcommand($, command)]
+            : [parseSubcommand($, command)];
+      });
   }
   bar.tick();
   return subcommand;
