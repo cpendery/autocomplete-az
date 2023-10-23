@@ -310,48 +310,44 @@ const loadSubcommand = async (
     description: removeTrailingDot(baseCommand.description),
     subcommands: [],
   };
-  await Promise.all(
-    groupUrls.map(async (url) =>
-      requestLimit(async () => {
-        const resp = await axios.get(url);
-        if (resp.status !== 200)
-          throw new Error(`Failed to fetch subcommand ${baseCommand.name}`);
-        const $ = cheerio.load(resp.data);
-        const commands = $('h2[id^="az-"]').toArray();
-        const subcommandGroupName = cleanCommandName($("h1").first().text());
-        const subcommandGroupNameSections = subcommandGroupName
-          .split(" ")
-          .slice(2);
-        const subcommandGroupDescription = $(".summary").text().trim();
 
-        // TODO: not properly nesting subcommands ex. `az webapp auth apple`
-        let currentSubcommand = subcommand;
-        subcommandGroupNameSections.forEach((section) => {
-          const existingSubcommand = currentSubcommand.subcommands?.find(
-            (subcommand) => subcommand.name === section
-          );
-          if (existingSubcommand != null) {
-            currentSubcommand = existingSubcommand;
-          } else {
-            const newSubcommand: Fig.Subcommand = { name: section };
-            currentSubcommand.subcommands?.push(newSubcommand);
-            currentSubcommand = newSubcommand;
-          }
-        });
-        currentSubcommand.description = removeTrailingDot(
-          subcommandGroupDescription
-        );
+  for (const url of groupUrls) {
+    const resp = await axios.get(url);
+    if (resp.status !== 200)
+      throw new Error(`Failed to fetch subcommand ${baseCommand.name}`);
+    const $ = cheerio.load(resp.data);
+    const commands = $('h2[id^="az-"]').toArray();
+    const subcommandGroupName = cleanCommandName($("h1").first().text());
+    const subcommandGroupNameSections = subcommandGroupName.split(" ").slice(2);
+    const subcommandGroupDescription = $(".summary").text().trim();
 
-        // TODO: duplicates appearing from extension methods `az webapp create vs. az webapp create (extension ...)
-        commands.forEach((command) => {
-          currentSubcommand.subcommands =
-            currentSubcommand.subcommands != null
-              ? [...currentSubcommand.subcommands, parseSubcommand($, command)]
-              : undefined;
-        });
-      })
-    )
-  );
+    let currentSubcommand = subcommand;
+    subcommandGroupNameSections.forEach((section) => {
+      const existingSubcommand = currentSubcommand.subcommands?.find(
+        (subcommand) => subcommand.name === section
+      );
+      if (existingSubcommand != null) {
+        currentSubcommand = existingSubcommand;
+      } else {
+        const newSubcommand: Fig.Subcommand = { name: section };
+        currentSubcommand.subcommands = currentSubcommand.subcommands
+          ? [...currentSubcommand.subcommands, newSubcommand]
+          : [newSubcommand];
+        currentSubcommand = newSubcommand;
+      }
+    });
+    currentSubcommand.description = removeTrailingDot(
+      subcommandGroupDescription
+    );
+
+    // TODO: duplicates appearing from extension methods `az webapp create vs. az webapp create (extension ...)
+    commands.forEach((command) => {
+      currentSubcommand.subcommands =
+        currentSubcommand.subcommands != null
+          ? [...currentSubcommand.subcommands, parseSubcommand($, command)]
+          : [parseSubcommand($, command)];
+    });
+  }
   bar.tick();
   return subcommand;
 };
